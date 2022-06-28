@@ -1,4 +1,4 @@
-import { useState, useContext } from 'react';
+import { useState, useContext, useEffect } from 'react';
 import { NextPage, GetServerSideProps, GetStaticPaths, GetStaticProps } from 'next';
 import { useRouter } from 'next/router';
 
@@ -15,30 +15,41 @@ import { IProduct, ICartProduct, ISize } from '../../interfaces';
 
 
 interface Props {
-  product: IProduct
+  product: any
 }
 
 
-const ProductPage:NextPage<Props> = ({ product }) => {
-
+const ProductPage:NextPage<Props> = (props) => {
+  /*useEffect(()=>{
+    setTempCartProduct({
+      _id: product._id,
+      image: product.images ,
+      price: product.price,
+      size: undefined,
+      slug: product.slug,
+      title: product.title,
+      gender: product.gender,
+      quantity: 1,
+    })
+  },[product])*/
   const router = useRouter();
   const { addProductToCart } = useContext( CartContext )
-
+  
   const [tempCartProduct, setTempCartProduct] = useState<ICartProduct>({
-    _id: product._id,
-    image: product.images ,
-    price: product.price,
+    _id:   props.product[0]?._id,
+    image: props.product[0]?.images ,
+    price: props.product[0]?.price,
     size: undefined,
-    slug: product.slug,
-    title: product.title,
-    gender: product.gender,
+    slug:  props.product[0]?.slug,
+    title: props.product[0]?.title,
+    gender:props.product[0]?.gender,
     quantity: 1,
   }) 
-
+  
 
   const selectedSize = ( size: ISize ) => {
-    setTempCartProduct( currentProduct => ({
-      ...currentProduct,
+    setTempCartProduct( currentproduct => ({
+      ...currentproduct,
       size
     }));
   }
@@ -53,24 +64,25 @@ const ProductPage:NextPage<Props> = ({ product }) => {
 
   const onAddProduct = () => {
     
-    if(product.sizes.length < 1) {
+    if(props.product[0].sizes.length < 1) {
       addProductToCart(tempCartProduct)
       router.push('/cart');
     }
     if ( !tempCartProduct.size ) { return; }
     addProductToCart(tempCartProduct);
     router.push('/cart');
-  }
+  };
+  
 
   
   return (
-    <ShopLayout title={ product.title } pageDescription={ product.description }>
+    <ShopLayout title={ props.product[0].title } pageDescription={ props.product[0].description }>
     
       <Grid container spacing={3}>
 
         <Grid item xs={12} sm={ 7 }>
           <ProductSlideshow 
-            images={ product.images }
+            images={ props.product[0]?.images }
           />
         </Grid>
 
@@ -78,8 +90,8 @@ const ProductPage:NextPage<Props> = ({ product }) => {
           <Box display='flex' flexDirection='column'>
 
             {/* titulos */}
-            <Typography variant='h1' component='h1'>{ product.title }</Typography>
-            <Typography variant='subtitle1' component='h2'>{ `$${product.price}` }</Typography>
+            <Typography variant='h1' component='h1'>{ props.product[0].title }</Typography>
+            <Typography variant='subtitle1' component='h2'>{ `$${props.product[0].price}` }</Typography>
 
             {/* Cantidad */}
             <Box sx={{ my: 2 }}>
@@ -87,11 +99,11 @@ const ProductPage:NextPage<Props> = ({ product }) => {
               <ItemCounter 
                 currentValue={tempCartProduct.quantity}
                 updatedQuantity={ onUpdateQuantity  }
-                maxValue={ product.inStock > 10 ? 10: product.inStock }
+                maxValue={ props.product[0].inStock > 10 ? 10: props.product[0].inStock }
               />
               {<SizeSelector 
                 // selectedSize={ product.sizes[2] } 
-                sizes={ product.sizes }
+                sizes={ props.product[0].sizes }
                 selectedSize={ tempCartProduct.size }
                 onSelectedSize={ selectedSize }
               />}
@@ -101,14 +113,14 @@ const ProductPage:NextPage<Props> = ({ product }) => {
 
             {/* Agregar al carrito */}
             {
-              (product.inStock > 0)
+              (props.product[0].inStock > 0)
                ? (
                   <Button 
                     color="secondary" 
                     className='circular-btn'
                     onClick={ onAddProduct }
                   >
-                    { product.sizes.length < 1? 'Agregar al carrito' : 
+                    { props.product[0].sizes.length < 1? 'Agregar al carrito' : 
                         tempCartProduct.size
                         ? 'Agregar al carrito'
                         : 'Seleccione una talla'
@@ -123,7 +135,7 @@ const ProductPage:NextPage<Props> = ({ product }) => {
             {/* Descripción */}
             <Box sx={{ mt:3 }}>
               <Typography variant='subtitle2'>Descripción</Typography>
-              <Typography variant='body2'>{ product.description }</Typography>
+              <Typography variant='body2'>{ props.product[0].description }</Typography>
             </Box>
 
           </Box>
@@ -174,7 +186,7 @@ export const getStaticPaths: GetStaticPaths = async (ctx) => {
   return {
     paths: productSlugs.map( (i:any) => ({
       params: {
-        slug : `${i._id}`
+        slug : i._id? `${i._id}` : `${i.slug}`
       }
     })),
     fallback: 'blocking'
@@ -189,21 +201,33 @@ export const getStaticPaths: GetStaticPaths = async (ctx) => {
 export const getStaticProps: GetStaticProps = async ({ params }) => {
   
   const { slug = '' } = params as { slug: string };
-  const product = await fetch(`https://globalmarkets.herokuapp.com/products/${slug}`).then(res=>res.json());
-  
-
-  if ( !product ) {
-    console.log("no hay productos");
+  const prueba = await fetch(`https://globalmarkets.herokuapp.com/products`).then(res=>res.json());
+  const product = prueba.filter((i)=>{
+    if(i._id == slug) return i
+    else if (i.slug == slug) return i
+  })
+  /*
+  if(product.length > 1) {
+    console.log(product)
+    return {
+      redirect: {
+        destination: '/category/men',
+        permanent: false
+      }
+    }
+  }*/
+  if ( !product[0] ) {
     
     return {
       redirect: {
-        destination: '/',
+        destination: '/cart',
         permanent: false
       }
     }
   }
-
+  
   return {
+    
     props: {
       product
     }
