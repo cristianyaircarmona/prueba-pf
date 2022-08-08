@@ -1,0 +1,3 @@
+use('mundomarket')
+
+db.products.find({}).sort({name: -1})
